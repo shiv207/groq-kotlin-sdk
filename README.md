@@ -14,7 +14,7 @@ The Groq Kotlin SDK provides a clean, idiomatic Kotlin interface to Groq's power
 // Simple example
 val client = GroqClient.create("your-api-key")
 val response = client.generateText(
-    model = GroqModel.LLAMA_3_1_70B_VERSATILE,
+    model = GroqModel.LLAMA_3_3_70B_VERSATILE,
     prompt = "Explain quantum computing in simple terms"
 )
 ```
@@ -119,9 +119,16 @@ client.apiKey = "your-new-api-key"
 #### Basic Text Generation
 
 ```kotlin
+// Using the latest production model
 val response = client.generateText(
-    model = GroqModel.LLAMA_3_1_70B_VERSATILE,
+    model = GroqModel.LLAMA_3_3_70B_VERSATILE,
     prompt = "Write a haiku about artificial intelligence"
+)
+
+// Using a preview model (not for production)
+val previewResponse = client.generateText(
+    model = GroqModel.KIMI_K2_INSTRUCT,
+    prompt = "Explain quantum computing"
 )
 ```
 
@@ -129,7 +136,7 @@ val response = client.generateText(
 
 ```kotlin
 val response = client.generateText(
-    model = GroqModel.LLAMA_3_1_70B_VERSATILE,
+    model = GroqModel.LLAMA_3_3_70B_VERSATILE,
     prompt = "List three benefits of using Kotlin",
     maxTokens = 150,
     temperature = 0.7,
@@ -151,9 +158,25 @@ val messages = listOf(
     ChatMessage(role = Role.USER, content = "Hello!")
 )
 
+// Using a production model
 val response = client.createChatCompletion(
-    model = GroqModel.MIXTRAL_8X7B_32768,
+    model = GroqModel.LLAMA_3_3_70B_VERSATILE,
     messages = messages
+)
+
+// Using a preview model with vision capabilities
+val visionMessages = listOf(
+    ChatMessage(role = Role.SYSTEM, content = "You are a helpful assistant that can understand images."),
+    ChatMessage(
+        role = Role.USER, 
+        content = "What's in this image?",
+        images = listOf("https://example.com/image.jpg")
+    )
+)
+
+val visionResponse = client.createChatCompletion(
+    model = GroqModel.LLAMA_3_2_11B_VISION_PREVIEW,
+    messages = visionMessages
 )
 ```
 
@@ -171,21 +194,39 @@ client.createChatCompletionStream(
 
 ### Model Selection
 
-#### Available Models
+#### Production Models
 
-| Model | ID | Description | Max Tokens |
-|-------|----|-------------|------------|
-| Llama 3.1 70B Versatile | `LLAMA_3_1_70B_VERSATILE` | General purpose model, balanced performance | 8,192 |
-| Llama 3.1 8B Instant | `LLAMA_3_1_8B_INSTANT` | Fast responses for simple queries | 8,192 |
-| Mixtral 8x7B | `MIXTRAL_8X7B_32768` | Large context window | 32,768 |
-| Gemma 7B IT | `GEMMA_7B_IT` | Instruction-tuned for code and chat | 8,192 |
+| Model | ID | Description | Max Tokens | Use Case |
+|-------|----|-------------|------------|----------|
+| Llama 3.3 70B Versatile | `LLAMA_3_3_70B_VERSATILE` | Latest general purpose model with improved performance | 8,192 | General purpose, complex tasks |
+| Llama 3.1 8B Instant | `LLAMA_3_1_8B_INSTANT` | Fast, efficient model for quick responses | 8,192 | Simple queries, low-latency needs |
+| Gemma 2 9B IT | `GEMMA2_9B_IT` | Lightweight, efficient model for code and chat | 8,192 | Code generation, chat applications |
+
+#### Preview Models (Not for Production)
+
+| Model | ID | Description | Max Tokens | Special Features |
+|-------|----|-------------|------------|------------------|
+| Kimi K2 Instruct | `KIMI_K2_INSTRUCT` | Moonshot AI's MoE model (1T total, 32B active) | 8,192 | Advanced reasoning, tool use |
+| Qwen 3 32B | `QWEN_3_32B` | Latest generation with advanced reasoning | 8,192 | Multilingual support, complex tasks |
+| Llama 3.1 70B Versatile | `LLAMA_3_1_70B_VERSATILE` | Previous generation general purpose model | 8,192 | General purpose |
+| Llama 3.2 11B Vision | `LLAMA_3_2_11B_VISION_PREVIEW` | Multimodal model with vision capabilities | 8,192 | Image understanding |
+| Mixtral 8x7B | `MIXTRAL_8X7B_32768` | Large context window model | 32,768 | Long documents, conversations |
+| DeepSeek R1 Distill Llama 70B | `DEEPSEEK_R1_DISTILL_LLAMA_70B` | High-performance reasoning model | 8,192 | Complex reasoning tasks |
+| Llama 4 Maverick 17B | `LLAMA_4_MAVERICK_17B` | Specialized for complex tasks | 8,192 | Advanced applications |
+| Llama 4 Scout 17B | `LLAMA_4_SCOUT_17B` | Optimized for specific use cases | 8,192 | Specialized applications |
 
 #### Choosing the Right Model
 
-- **For general use**: `LLAMA_3_1_70B_VERSATILE`
-- **For speed**: `LLAMA_3_1_8B_INSTANT`
-- **For long documents**: `MIXTRAL_8X7B_32768`
-- **For code generation**: `GEMMA_7B_IT`
+- **For production use**:
+  - `LLAMA_3_3_70B_VERSATILE` - Best overall performance for most use cases
+  - `LLAMA_3_1_8B_INSTANT` - When speed is critical
+  - `GEMMA2_9B_IT` - For code generation and chat applications
+
+- **For experimental/preview features**:
+  - `KIMI_K2_INSTRUCT` - Advanced reasoning and tool use
+  - `QWEN_3_32B` - Multilingual support
+  - `LLAMA_3_2_11B_VISION_PREVIEW` - For image understanding
+  - `MIXTRAL_8X7B_32768` - For long documents (32k tokens context)
 
 ### Error Handling
 

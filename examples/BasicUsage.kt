@@ -35,13 +35,22 @@ object BasicUsage {
         val client = GroqClient.create(apiKey)
         
         try {
+            // Using the latest production model
             val response = client.generateText(
-                model = GroqModel.LLAMA_3_1_8B_INSTANT,
-                prompt = "Write a haiku about programming",
+                model = GroqModel.LLAMA_3_3_70B_VERSATILE,
+                prompt = "Write a haiku about artificial intelligence",
                 temperature = 0.7
             )
+            println("Generated text (70B): ${response.choices.first().message.content}")
             
-            println("Generated text: $response")
+            // Example with a preview model (not for production)
+            val previewResponse = client.generateText(
+                model = GroqModel.KIMI_K2_INSTRUCT,
+                prompt = "Explain quantum computing in simple terms",
+                temperature = 0.3
+            )
+            println("\nPreview model response: ${previewResponse.choices.first().message.content}")
+            
         } catch (e: GroqException) {
             println("Error: ${e.message}")
         } finally {
@@ -54,15 +63,17 @@ object BasicUsage {
         
         val client = GroqClient.create(apiKey)
         
-        val messages = listOf(
+        // Example 1: Basic chat with production model
+        val basicMessages = listOf(
             ChatMessage(MessageRole.SYSTEM, "You are a helpful coding assistant."),
-            ChatMessage(MessageRole.USER, "How do I create a REST API in Kotlin?")
+            ChatMessage(MessageRole.USER, "How do I create a REST API in Kotlin using Ktor?")
         )
         
         try {
+            println("\n--- Basic Chat Example ---")
             val response = client.createChatCompletion(
-                model = GroqModel.LLAMA_3_1_70B_VERSATILE,
-                messages = messages,
+                model = GroqModel.LLAMA_3_3_70B_VERSATILE,
+                messages = basicMessages,
                 temperature = 0.3,
                 maxTokens = 500
             )
@@ -70,6 +81,28 @@ object BasicUsage {
             val assistantMessage = response.choices.first().message
             println("Assistant: ${assistantMessage.content}")
             println("Tokens used: ${response.usage.totalTokens}")
+            
+            // Example 2: Using a preview model with vision capabilities
+            println("\n--- Vision Model Example (Preview) ---")
+            val visionMessages = listOf(
+                ChatMessage(
+                    role = MessageRole.SYSTEM, 
+                    content = "You are an AI assistant that can understand images."
+                ),
+                ChatMessage(
+                    role = MessageRole.USER,
+                    content = "What's in this image?",
+                    images = listOf("https://example.com/sample-image.jpg") // Replace with actual image URL
+                )
+            )
+            
+            val visionResponse = client.createChatCompletion(
+                model = GroqModel.LLAMA_3_2_11B_VISION_PREVIEW,
+                messages = visionMessages,
+                maxTokens = 300
+            )
+            
+            println("Vision model response: ${visionResponse.choices.first().message.content}")
             
         } catch (e: GroqException) {
             println("Error: ${e.message}")
@@ -89,13 +122,31 @@ object BasicUsage {
         }
         
         try {
+            // Example with custom parameters using a production model
             val response = client.generateText(
-                model = GroqModel.MIXTRAL_8X7B_32768,
-                prompt = "Explain the benefits of Kotlin Multiplatform",
-                maxTokens = 300
+                model = GroqModel.LLAMA_3_3_70B_VERSATILE,
+                prompt = "Compare Kotlin Multiplatform with Flutter and React Native",
+                maxTokens = 400,
+                temperature = 0.7,
+                topP = 0.9,
+                n = 2,  // Get 2 completions
+                stop = listOf("\n"),
+                presencePenalty = 0.6,
+                frequencyPenalty = 0.5
             )
             
-            println("Response: $response")
+            println("Generated completions:")
+            response.choices.forEachIndexed { index, choice ->
+                println("\n--- Completion ${index + 1} ---")
+                println(choice.message.content)
+            }
+            
+            // Example of using the model selection helper
+            println("\n--- Available Production Models ---")
+            GroqModel.productionModels().forEach { model ->
+                println("- ${model.name}: ${model.modelId}")
+            }
+            
         } catch (e: GroqException) {
             println("Error: ${e.message}")
         } finally {
@@ -108,10 +159,12 @@ object BasicUsage {
         
         val client = GroqClient.create(apiKey)
         
+        // Example 1: Invalid parameters
+        println("\n--- Testing Invalid Parameters ---")
         try {
-            // This will likely fail due to invalid parameters to demonstrate error handling
+            // This will fail due to invalid parameters
             val response = client.createChatCompletion(
-                model = GroqModel.LLAMA_3_1_8B_INSTANT,
+                model = GroqModel.LLAMA_3_3_70B_VERSATILE,
                 messages = emptyList(), // Invalid: empty messages
                 temperature = 3.0 // Invalid: temperature > 2
             )
@@ -119,21 +172,53 @@ object BasicUsage {
             println("Response: ${response.choices.first().message.content}")
             
         } catch (e: GroqValidationException) {
-            println("Validation error: ${e.message}")
-        } catch (e: GroqAuthenticationException) {
-            println("Authentication error: ${e.message}")
-        } catch (e: GroqRateLimitException) {
-            println("Rate limit exceeded. Retry after: ${e.retryAfterSeconds} seconds")
-        } catch (e: GroqApiException) {
-            println("API error ${e.statusCode}: ${e.message}")
-        } catch (e: GroqNetworkException) {
-            println("Network error: ${e.message}")
-        } catch (e: GroqTimeoutException) {
-            println("Request timed out: ${e.message}")
-        } catch (e: GroqException) {
-            println("General Groq error: ${e.message}")
-        } finally {
-            client.close()
+            println("✅ Caught validation error as expected: ${e.message}")
+        } catch (e: Exception) {
+            println("❌ Unexpected error: ${e.javaClass.simpleName}: ${e.message}")
         }
+        
+        // Example 2: Invalid API key
+        println("\n--- Testing Invalid API Key ---")
+        val invalidClient = GroqClient.create("invalid-api-key")
+        try {
+            invalidClient.generateText(
+                model = GroqModel.LLAMA_3_3_70B_VERSATILE,
+                prompt = "This should fail"
+            )
+        } catch (e: GroqAuthenticationException) {
+            println("✅ Caught authentication error as expected: ${e.message}")
+        } catch (e: Exception) {
+            println("❌ Unexpected error: ${e.javaClass.simpleName}: ${e.message}")
+        } finally {
+            invalidClient.close()
+        }
+        
+        // Example 3: Rate limiting
+        println("\n--- Testing Rate Limiting ---")
+        try {
+            // Send multiple requests quickly to trigger rate limiting
+            repeat(10) { i ->
+                val tempClient = GroqClient.create(apiKey)
+                try {
+                    val tempResponse = tempClient.generateText(
+                        model = GroqModel.LLAMA_3_3_70B_VERSATILE,
+                        prompt = "Quick test ${i + 1}",
+                        maxTokens = 10
+                    )
+                    println("Request ${i + 1} succeeded")
+                } catch (e: GroqRateLimitException) {
+                    println("✅ Hit rate limit as expected. Retry after: ${e.retryAfterSeconds} seconds")
+                    throw e // Re-throw to exit the loop
+                } finally {
+                    tempClient.close()
+                }
+            }
+        } catch (e: GroqRateLimitException) {
+            // Expected - do nothing
+        } catch (e: Exception) {
+            println("❌ Unexpected error: ${e.javaClass.simpleName}: ${e.message}")
+        }
+        
+        client.close()
     }
 }

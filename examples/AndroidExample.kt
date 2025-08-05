@@ -16,75 +16,130 @@ import kotlinx.coroutines.launch
  */
 class ChatViewModel(apiKey: String) : ViewModel() {
     
+    // Available models for selection
+    val availableModels = listOf(
+        ModelInfo("Llama 3.3 70B (Recommended)", GroqModel.LLAMA_3_3_70B_VERSATILE, isPreview = false),
+        ModelInfo("Llama 3.1 8B (Fast)", GroqModel.LLAMA_3_1_8B_INSTANT, isPreview = false),
+        ModelInfo("Gemma 2 9B (Code)", GroqModel.GEMMA2_9B_IT, isPreview = false),
+        ModelInfo("Kimi K2 (Preview)", GroqModel.KIMI_K2_INSTRUCT, isPreview = true),
+        ModelInfo("Qwen 3 32B (Preview)", GroqModel.QWEN_3_32B, isPreview = true)
+    )
+    
+    private var selectedModel: GroqModel = GroqModel.LLAMA_3_3_70B_VERSATILE
+    
     private val groqClient = GroqClient.create {
         apiKey(apiKey)
         enableLogging(BuildConfig.DEBUG)
         retryAttempts(3)
-        timeout(30_000L)
+        timeout(45_000L) // Longer timeout for mobile
     }
     
-    private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
-    val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
+    private val _uiState = MutableStateFlow(ChatUiState())
+    val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
     
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
-    
-    private val _error = MutableStateFlow<String?>(null)
-    val error: StateFlow<String?> = _error.asStateFlow()
+    // Update selected model
+    fun selectModel(model: GroqModel) {
+        selectedModel = model
+        _uiState.update { it.copy(selectedModelName = availableModels.find { m -> m.model == model }?.displayName ?: "") }
+    }
     
     fun sendMessage(content: String) {
+        if (content.isBlank() || _uiState.value.isLoading) return
+        
         viewModelScope.launch {
-            _isLoading.value = true
-            _error.value = null
+            _uiState.update { it.copy(isLoading = true, error = null) }
             
             // Add user message to the conversation
             val userMessage = ChatMessage(MessageRole.USER, content)
-            val currentMessages = _messages.value + userMessage
-            _messages.value = currentMessages
+            val currentMessages = _uiState.value.messages + userMessage
+            _uiState.update { it.copy(messages = currentMessages) }
             
             try {
-                val response = groqClient.createChatCompletion(
-                    model = GroqModel.LLAMA_3_1_70B_VERSATILE,
+                // Show typing indicator
+                val typingIndicator = ChatMessage(MessageRole.ASSISTANT, "...")
+                _uiState.update { it.copy(messages = currentMessages + typingIndicator) }
+                
+                // Stream the response
+                groqClient.createChatCompletion(
+                    model = selectedModel,
                     messages = currentMessages,
                     temperature = 0.7,
-                    maxTokens = 1000
-                )
-                
-                // Add assistant response to the conversation
-                val assistantMessage = response.choices.first().message
-                _messages.value = currentMessages + assistantMessage
+                    maxTokens = 1000,
+                    stream = true
+                ) { chunk ->
+                    val content = chunk.choices.firstOrNull()?.delta?.content ?: return@createChatCompletion
+                    
+                    // Update the last message with the new content
+                    _uiState.update { state ->
+                        val messages = state.messages.toMutableList()
+                        if (messages.isNotEmpty() && messages.last().role == MessageRole.ASSISTANT) {
+                            messages[messages.lastIndex] = messages.last().copy(
+                                content = (messages.last().content + content).trimStart()
+                            )
+                        } else {
+                            messages.add(ChatMessage(MessageRole.ASSISTANT, content))
+                        }
+                        state.copy(messages = messages)
+                    }
+                }
                 
             } catch (e: GroqAuthenticationException) {
-                _error.value = "Invalid API key. Please check your configuration."
+                _uiState.update { it.copy(error = "Invalid API key. Please check your configuration.") }
             } catch (e: GroqRateLimitException) {
-                _error.value = "Rate limit exceeded. Please try again in ${e.retryAfterSeconds ?: 60} seconds."
+                _uiState.update { it.copy(error = "Rate limit exceeded. Please try again in ${e.retryAfterSeconds ?: 60} seconds.") }
             } catch (e: GroqApiException) {
-                _error.value = "API Error: ${e.message}"
+                _uiState.update { it.copy(error = "API Error: ${e.message}") }
             } catch (e: GroqNetworkException) {
-                _error.value = "Network error. Please check your connection."
+                _uiState.update { it.copy(error = "Network error. Please check your connection.") }
             } catch (e: GroqTimeoutException) {
-                _error.value = "Request timed out. Please try again."
+                _uiState.update { it.copy(error = "Request timed out. Please try again.") }
             } catch (e: GroqException) {
-                _error.value = "Error: ${e.message}"
+                _uiState.update { it.copy(error = "Error: ${e.message}") }
             } finally {
-                _isLoading.value = false
+                _uiState.update { it.copy(isLoading = false) }
+                
+                // Remove typing indicator if it exists
+                _uiState.update { state ->
+                    val messages = state.messages.filterNot { it.content == "..." }
+                    state.copy(messages = messages)
+                }
             }
         }
     }
     
     fun clearMessages() {
-        _messages.value = emptyList()
-        _error.value = null
+        _uiState.update { 
+            it.copy(
+                messages = emptyList(),
+                error = null
+            )
+        }
     }
     
     fun clearError() {
-        _error.value = null
+        _uiState.update { it.copy(error = null) }
     }
     
     override fun onCleared() {
         super.onCleared()
         groqClient.close()
     }
+}
+
+// UI state for the chat screen
+data class ChatUiState(
+    val messages: List<ChatMessage> = emptyList(),
+    val isLoading: Boolean = false,
+    val error: String? = null,
+    val selectedModelName: String = ""
+)
+
+// Wrapper for model information
+data class ModelInfo(
+    val displayName: String,
+    val model: GroqModel,
+    val isPreview: Boolean
+)
 }
 
 /**

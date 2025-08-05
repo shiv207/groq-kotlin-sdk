@@ -49,17 +49,102 @@ data class GroqConfig(
 
 /**
  * Available Groq models
+ * 
+ * Note: Preview models may be discontinued at short notice. For production use, prefer models marked as production-ready.
  */
 enum class GroqModel(val modelId: String) {
-    LLAMA_3_1_405B_REASONING("llama-3.1-405b-reasoning"),
-    LLAMA_3_1_70B_VERSATILE("llama-3.1-70b-versatile"),
-    LLAMA_3_1_8B_INSTANT("llama-3.1-8b-instant"),
-    LLAMA_3_2_11B_VISION_PREVIEW("llama-3.2-11b-vision-preview"),
-    LLAMA_3_2_1B_PREVIEW("llama-3.2-1b-preview"),
-    LLAMA_3_2_3B_PREVIEW("llama-3.2-3b-preview"),
-    MIXTRAL_8X7B_32768("mixtral-8x7b-32768"),
-    GEMMA_7B_IT("gemma-7b-it"),
-    GEMMA2_9B_IT("gemma2-9b-it");
+    // Production Models
+    /**
+     * Llama 3.3 70B Versatile - Production-ready model for general purpose use
+     */
+    LLAMA_3_3_70B_VERSATILE("llama-3.3-70b-versatile"),
     
+    /**
+     * Llama 3.1 8B Instant - Fast, efficient model for quick responses
+     */
+    LLAMA_3_1_8B_INSTANT("llama-3.1-8b-instant"),
+    
+    /**
+     * Gemma 2 9B IT - Lightweight, efficient model for code and chat
+     */
+    GEMMA2_9B_IT("gemma2-9b-it"),
+    
+    // Preview Models
+    /**
+     * Kimi K2 Instruct - Moonshot AI's Mixture-of-Experts model with 1T total parameters (32B active)
+     * Note: Preview model - not for production use
+     */
+    KIMI_K2_INSTRUCT("kimi-k2-instruct"),
+    
+    /**
+     * Qwen 3 32B - Latest generation with advanced reasoning and multilingual support
+     * Note: Preview model - not for production use
+     */
+    QWEN_3_32B("qwen-3-32b"),
+    
+    /**
+     * Llama 3.1 70B Versatile - General purpose model
+     * Note: Preview model - not for production use
+     */
+    LLAMA_3_1_70B_VERSATILE("llama-3.1-70b-versatile"),
+    
+    /**
+     * Llama 3.2 11B Vision - Multimodal model with vision capabilities
+     * Note: Preview model - not for production use
+     */
+    LLAMA_3_2_11B_VISION_PREVIEW("llama-3.2-11b-vision-preview"),
+    
+    /**
+     * Mixtral 8x7B - Large context window model (32k tokens)
+     * Note: Preview model - not for production use
+     */
+    MIXTRAL_8X7B_32768("mixtral-8x7b-32768"),
+    
+    /**
+     * DeepSeek R1 Distill Llama 70B - High-performance reasoning model
+     * Note: Preview model - not for production use
+     */
+    DEEPSEEK_R1_DISTILL_LLAMA_70B("deepseek-r1-distill-llama-70b"),
+    
+    /**
+     * Llama 4 Maverick 17B - Specialized for complex tasks
+     * Note: Preview model - not for production use
+     */
+    LLAMA_4_MAVERICK_17B("llama-4-maverick-17b-128e-instruct"),
+    
+    /**
+     * Llama 4 Scout 17B - Optimized for specific use cases
+     * Note: Preview model - not for production use
+     */
+    LLAMA_4_SCOUT_17B("llama-4-scout-17b-16e-instruct");
+    
+    /**
+     * Returns the model ID string used in API requests
+     */
     override fun toString(): String = modelId
+    
+    companion object {
+        /**
+         * Get all production-ready models
+         */
+        fun productionModels(): List<GroqModel> = listOf(
+            LLAMA_3_3_70B_VERSATILE,
+            LLAMA_3_1_8B_INSTANT,
+            GEMMA2_9B_IT
+        )
+        
+        /**
+         * Get all preview models
+         */
+        fun previewModels(): List<GroqModel> = listOf(
+            KIMI_K2_INSTRUCT,
+            QWEN_3_32B,
+            LLAMA_3_1_70B_VERSATILE,
+            LLAMA_3_2_11B_VISION_PREVIEW,
+            MIXTRAL_8X7B_32768,
+            DEEPSEEK_R1_DISTILL_LLAMA_70B,
+            LLAMA_4_MAVERICK_17B,
+            LLAMA_4_SCOUT_17B
+        )
+    }
 }
